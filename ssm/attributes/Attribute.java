@@ -48,8 +48,9 @@ public abstract class Attribute extends BukkitRunnable implements Listener {
     protected Plugin plugin;
     protected Player owner;
     protected BukkitTask task;
-    protected double cooldownTime = 0;
-    protected float expUsed = 0;
+    public double cooldownTime = 0;
+    public float expUsed = 0;
+    protected boolean needsExactXP = true;
     protected AbilityUsage usage = AbilityUsage.RIGHT_CLICK;
     protected String useMessage = "You used";
     protected boolean inform_cooldown = true;
@@ -71,7 +72,10 @@ public abstract class Attribute extends BukkitRunnable implements Listener {
         if (hasCooldown()) {
             return false;
         }
-        if (expUsed > 0 && owner.getExp() < expUsed) {
+        if (needsExactXP && expUsed > 0 && owner.getExp() < expUsed) {
+            return false;
+        }
+        if(!needsExactXP && owner.getExp() <= 0) {
             return false;
         }
         return true;

@@ -38,6 +38,7 @@ public class DamageManager implements Listener {
     private JavaPlugin plugin = Main.getInstance();
     private static List<SmashDamageEvent> damage_record = new ArrayList<>();
     public static HashMap<org.bukkit.entity.Entity, Integer> invincible_mobs = new HashMap<org.bukkit.entity.Entity, Integer>();
+    public static HashMap<FallingBlock, Integer> no_fast_block = new HashMap<FallingBlock, Integer>();
 
     public DamageManager() {
         plugin.getServer().getPluginManager().registerEvents(this, plugin);
@@ -60,6 +61,9 @@ public class DamageManager implements Listener {
     @EventHandler
     public void preAttack(PrePlayerAttackEntityEvent e) {
         if(!(e.getAttacked() instanceof FallingBlock)) {
+            return;
+        }
+        if(no_fast_block.containsKey((FallingBlock) e.getAttacked())) {
             return;
         }
         e.setCancelled(true);
@@ -217,6 +221,39 @@ public class DamageManager implements Listener {
         arrow.remove();
     }
 
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void redirectSmashDamage(SmashDamageEvent e) {
+        if(!DisguiseManager.redirect_damage.containsKey(e.getDamagee())) {
+            return;
+        }
+        boolean old_cancelled = e.isCancelled();
+        e.setCancelled(true);
+        // Be careful not to double up damage on the redirected entity
+        if(e.getDamageCause() == DamageCause.SUFFOCATION) {
+            return;
+        }
+        if(e.getDamageCause() == DamageCause.STARVATION) {
+            return;
+        }
+        if(e.getDamageCause() == DamageCause.LAVA) {
+            return;
+        }
+        if(e.getDamageCause() == DamageCause.VOID) {
+            return;
+        }
+        if(e.getDamageCause() == DamageCause.ENTITY_EXPLOSION) {
+            return;
+        }
+        if(e.getDamageCause() == DamageCause.BLOCK_EXPLOSION) {
+            return;
+        }
+        if(e.getDamageCause() == DamageCause.DROWNING) {
+            return;
+        }
+        e.setCancelled(old_cancelled);
+        e.setDamagee(DisguiseManager.redirect_damage.get(e.getDamagee()));
+    }
+
     @EventHandler(priority = EventPriority.LOW)
     public void cancelSmashDamage(SmashDamageEvent e) {
         if(invincible_mobs.containsKey(e.getDamagee())) {
@@ -234,11 +271,6 @@ public class DamageManager implements Listener {
         if (e.getDamagee() != null && e.getDamagee() instanceof Player) {
             Player damagee = (Player) e.getDamagee();
             if (damagee.getGameMode() != GameMode.SURVIVAL && damagee.getGameMode() != GameMode.ADVENTURE) {
-                e.setCancelled(true);
-                return;
-            }
-            SmashServer server = GameManager.getPlayerServer(damagee);
-            if(server != null && server.isSpectator(damagee)) {
                 e.setCancelled(true);
                 return;
             }
@@ -313,7 +345,7 @@ public class DamageManager implements Listener {
         if (damagee instanceof Player) {
             Player player = (Player) damagee;
             if (KitManager.getPlayerKit((player)) != null) {
-                damageMultiplier = 1 - KitManager.getPlayerKit(player).getArmor() * 0.08f;
+                damageMultiplier = Math.max(0, 1 - KitManager.getPlayerKit(player).getArmor() * 0.08f);
             }
         }
         if (ignoreArmor) {
@@ -373,7 +405,7 @@ public class DamageManager implements Listener {
                 server.death(player);
             }
         }
-        if (damager instanceof Player) {
+        if (damager instanceof Player && cause != DamageCause.VOID) {
             Player player = (Player) damager;
             player.setLevel((int) damage);
         }

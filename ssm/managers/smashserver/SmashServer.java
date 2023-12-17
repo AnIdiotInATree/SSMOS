@@ -53,7 +53,6 @@ public class SmashServer implements Listener, Runnable {
     private static JavaPlugin plugin = Main.getInstance();
     private short state = GameState.LOBBY_WAITING;
     private long time_remaining_ms = 0;
-    private long last_time_update_ms = 0;
     protected SmashScoreboard scoreboard;
     protected SmashGamemode current_gamemode;
     protected LobbyMap lobby_map;
@@ -67,7 +66,8 @@ public class SmashServer implements Listener, Runnable {
 
     public SmashServer() {
         Bukkit.getServer().getPluginManager().registerEvents(this, plugin);
-        scoreboard = new SmashScoreboard(this);
+        scoreboard = new SmashScoreboard();
+        scoreboard.server = this;
         File lobby_directory = new File("maps/lobby_world");
         lobby_map = new LobbyMap(lobby_directory);
         lobby_map.createWorld();
@@ -78,10 +78,7 @@ public class SmashServer implements Listener, Runnable {
     @Override
     public void run() {
         current_gamemode.update();
-        if (time_remaining_ms % 1000 == 0 && time_remaining_ms != last_time_update_ms) {
-            scoreboard.buildScoreboard();
-            last_time_update_ms = time_remaining_ms;
-        }
+        scoreboard.buildScoreboard();
         if (state == GameState.LOBBY_WAITING) {
             doLobbyWaiting();
             return;
@@ -295,9 +292,11 @@ public class SmashServer implements Listener, Runnable {
                 player.sendMessage("");
                 player.sendMessage(game_map.toString());
                 player.sendMessage(ChatColor.DARK_GREEN + "" + ChatColor.STRIKETHROUGH + "=============================================");
-                Utils.fullHeal(player);
+                current_gamemode.afterGameEnded(player);
+                if(!lives.containsKey(player)) {
+                    Utils.fullHeal(player);
+                }
             }
-            scoreboard.buildScoreboard();
             lives.clear();
             deaths = new Player[2];
             setTimeLeft(10);
@@ -344,8 +343,12 @@ public class SmashServer implements Listener, Runnable {
                 1f, 1f, Material.INK_SACK, (byte) 1, 10, true);
         SmashDamageEvent record = DamageManager.getLastDamageEvent(player);
         for(Player message : players) {
-            message.sendMessage(ServerMessageType.DEATH + " " + ChatColor.YELLOW + player.getName() +
-                    ChatColor.GRAY + " killed by " + ChatColor.YELLOW + record.getDamagerName() +
+            String damager_color = "" + ChatColor.YELLOW;
+            if(record.getDamager() instanceof Player) {
+                damager_color = SmashScoreboard.getPlayerColor((Player) record.getDamager(), false);
+            }
+            message.sendMessage(ServerMessageType.DEATH + " " + SmashScoreboard.getPlayerColor(player, false) + player.getName() +
+                    ChatColor.GRAY + " killed by " + damager_color + record.getDamagerName() +
                     ChatColor.GRAY + " with " + record.getReasonColor() + record.getReason() + ChatColor.GRAY + ".");
         }
         DamageManager.deathReport(player, true);
@@ -383,7 +386,6 @@ public class SmashServer implements Listener, Runnable {
             deaths[1] = deaths[0];
             deaths[0] = player;
             KitManager.equipPlayer(player, new KitTemporarySpectator());
-            scoreboard.buildScoreboard();
             return;
         }
         Utils.sendTitleMessage(player, "", "Respawning in 4 seconds...", 10, 50, 10);
@@ -391,13 +393,12 @@ public class SmashServer implements Listener, Runnable {
         player.sendMessage(ChatColor.RED + "" + ChatColor.BOLD + "You have " + lives.get(player) +
                 " " + (lives.get(player) == 1 ? "life" : "lives") + " left!");
         player.playSound(player.getLocation(), Sound.NOTE_BASS_GUITAR, 2f, 0.5f);
-        scoreboard.buildScoreboard();
         KitManager.equipPlayer(player, new KitTemporarySpectator());
         // Respawn in 4 seconds
         Bukkit.getScheduler().scheduleSyncDelayedTask(Main.getInstance(), new Runnable() {
             @Override
             public void run() {
-                if (state == GameState.GAME_PLAYING && lives.get(player) > 0) {
+                if (state == GameState.GAME_PLAYING && getLives(player) > 0) {
                     player.teleport(current_gamemode.getRandomRespawnPoint(player));
                     Utils.sendTitleMessage(player, "", SmashScoreboard.getLivesColor(player) +
                                     "" + lives.get(player) + " " + (lives.get(player) == 1 ? "life" : "lives") + " left!",
@@ -427,7 +428,6 @@ public class SmashServer implements Listener, Runnable {
             return;
         }
         toggled_spectator.add(player);
-        scoreboard.buildScoreboard();
     }
 
     public boolean isSpectator(Player player) {
@@ -488,7 +488,6 @@ public class SmashServer implements Listener, Runnable {
         for (GameMap map : current_gamemode.getAllowedMaps()) {
             map.clearVoted();
         }
-        scoreboard.buildScoreboard();
         for(Player player : players) {
             Utils.sendServerMessageToPlayer("Set " +
                     ChatColor.YELLOW + current_gamemode.getName() + ChatColor.GRAY +
@@ -514,7 +513,6 @@ public class SmashServer implements Listener, Runnable {
                 }
                 if(state <= GameState.LOBBY_VOTING) {
                     pre_selected_kits.put(player, kit);
-                    scoreboard.buildScoreboard();
                 }
                 GameManager.setDefaultKit(player, kit);
                 return;
@@ -546,7 +544,6 @@ public class SmashServer implements Listener, Runnable {
         if (changed) {
             run();
         }
-        scoreboard.buildScoreboard();
     }
 
     public short getState() {
@@ -639,9 +636,10 @@ public class SmashServer implements Listener, Runnable {
     }
 
     public void setPlayerLobbyItems(Player player) {
-        player.getInventory().setItem(0, Main.KIT_SELECTOR_ITEM);
-        player.getInventory().setItem(1, Main.VOTING_MENU_ITEM);
-        player.getInventory().setItem(8, Main.TELEPORT_HUB_ITEM);
+        if(current_gamemode == null) {
+            return;
+        }
+        current_gamemode.setPlayerLobbyItems(player);
     }
 
     public void openVotingMenu(Player player) {
@@ -747,7 +745,6 @@ public class SmashServer implements Listener, Runnable {
         if(team != null) {
             team.removePlayer(e.getPlayer());
         }
-        scoreboard.buildScoreboard();
         for (Player message : players) {
             message.sendMessage(ChatColor.DARK_GRAY + "Quit> " + ChatColor.GRAY + e.getPlayer().getName());
         }
@@ -776,7 +773,6 @@ public class SmashServer implements Listener, Runnable {
         if(team != null) {
             team.removePlayer(player);
         }
-        scoreboard.buildScoreboard();
         for (Player message : players) {
             message.sendMessage(ChatColor.DARK_GRAY + "Quit> " + ChatColor.GRAY + player.getName());
         }
@@ -797,7 +793,6 @@ public class SmashServer implements Listener, Runnable {
             }
             players.add(player);
             setPlayerLobbyItems(player);
-            scoreboard.buildScoreboard();
             return;
         }
         if(game_map != null && game_map.getWorld().equals(player.getWorld())) {
@@ -806,7 +801,6 @@ public class SmashServer implements Listener, Runnable {
             }
             players.add(player);
             KitManager.equipPlayer(player, new KitTemporarySpectator());
-            scoreboard.buildScoreboard();
             return;
         }
     }

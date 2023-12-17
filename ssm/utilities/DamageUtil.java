@@ -1,6 +1,7 @@
 package ssm.utilities;
 
 import ssm.events.SmashDamageEvent;
+import ssm.kits.original.KitTemporarySpectator;
 import ssm.managers.DamageManager;
 import ssm.managers.GameManager;
 import ssm.managers.KitManager;
@@ -22,15 +23,16 @@ public class DamageUtil {
     private static HashMap<LivingEntity, DamageRateTracker> damageRateTrackers = new HashMap<LivingEntity, DamageRateTracker>();
 
     public static void borderKill(Player player, boolean lightning) {
-        if(lightning && DamageUtil.canDamage(player, null)) {
+        SmashServer server = GameManager.getPlayerServer(player);
+        Kit kit = KitManager.getPlayerKit(player);
+        if(lightning && kit != null && !(kit instanceof KitTemporarySpectator)) {
             player.getWorld().strikeLightningEffect(player.getLocation());
         }
-        Player last_damager = null;
-        SmashDamageEvent last_damage_event = DamageManager.getLastDamageEvent(player);
-        if(last_damage_event != null && last_damage_event.getDamager() instanceof Player) {
-            last_damager = (Player) DamageManager.getLastDamageEvent(player).getDamager();
+        double pre_lives = 0;
+        if(server != null) {
+            pre_lives = server.getLives(player);
         }
-        SmashDamageEvent smashDamageEvent = new SmashDamageEvent(player, last_damager, 1000);
+        SmashDamageEvent smashDamageEvent = new SmashDamageEvent(player, null, 1000);
         smashDamageEvent.multiplyKnockback(0);
         smashDamageEvent.setIgnoreArmor(true);
         smashDamageEvent.setIgnoreDamageDelay(true);
@@ -38,6 +40,12 @@ public class DamageUtil {
         smashDamageEvent.setDamagerName("Void");
         smashDamageEvent.setReason("World Border");
         smashDamageEvent.callEvent();
+        // Only teleport if we died from the damage event
+        if(pre_lives > 0) {
+            if(pre_lives == server.getLives(player)) {
+                return;
+            }
+        }
         player.teleport(player.getWorld().getSpawnLocation());
     }
 

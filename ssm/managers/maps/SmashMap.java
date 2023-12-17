@@ -32,6 +32,9 @@ public abstract class SmashMap implements Listener {
     public SmashMap(File original_directory) {
         Bukkit.getServer().getPluginManager().registerEvents(this, Main.getInstance());
         File copy_directory = new File("maps/_Copies/" + UUID.randomUUID());
+        if(copy_directory.exists()) {
+            throw new RuntimeException("UUID Collision for Mapfile");
+        }
         if (!copy_directory.exists()) {
             try {
                 FileUtils.copyDirectory(original_directory, copy_directory);
@@ -59,9 +62,11 @@ public abstract class SmashMap implements Listener {
         world = worldCreator.createWorld();
         world.setAutoSave(false);
         Block center = world.getSpawnLocation().getBlock();
-        for (int x = -permanent_chunk_load_radius; x <= permanent_chunk_load_radius; x++) {
-            for (int z = -permanent_chunk_load_radius; z <= permanent_chunk_load_radius; z++) {
-                permanent_chunks.add(world.getChunkAt(center.getChunk().getX() + x, center.getChunk().getZ() + z));
+        if(permanent_chunk_load_radius >= 0) {
+            for (int x = -permanent_chunk_load_radius; x <= permanent_chunk_load_radius; x++) {
+                for (int z = -permanent_chunk_load_radius; z <= permanent_chunk_load_radius; z++) {
+                    permanent_chunks.add(world.getChunkAt(center.getChunk().getX() + x, center.getChunk().getZ() + z));
+                }
             }
         }
         for (int x = -parse_chunk_radius; x <= parse_chunk_radius; x++) {

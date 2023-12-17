@@ -1,12 +1,15 @@
 package ssm.abilities.original;
 
+import net.minecraft.server.v1_8_R3.EntitySlime;
+import org.bukkit.craftbukkit.v1_8_R3.entity.CraftSlime;
+import org.bukkit.scheduler.BukkitRunnable;
 import ssm.abilities.Ability;
 import ssm.attributes.ExpCharge;
 import ssm.managers.CooldownManager;
 import ssm.managers.KitManager;
 import ssm.managers.ownerevents.OwnerRightClickEvent;
 import ssm.kits.Kit;
-import ssm.projectiles.SlimeProjectile;
+import ssm.projectiles.original.SlimeProjectile;
 import ssm.utilities.ServerMessageType;
 import ssm.utilities.Utils;
 import net.minecraft.server.v1_8_R3.EnumParticle;
@@ -91,6 +94,21 @@ public class SlimeRocket extends Ability implements OwnerRightClickEvent {
         long startTime = CooldownManager.getInstance().getStartTimeFor(this, owner);
         double charge = Math.min(3, (double) (System.currentTimeMillis() - startTime) / 1000d);
         Slime slime = owner.getWorld().spawn(owner.getEyeLocation(), Slime.class);
+        // Hack fix because slimes refuse to face any direction but south
+        BukkitRunnable runnable = new BukkitRunnable() {
+            private EntitySlime nms_slime = ((CraftSlime) slime).getHandle();
+            private float original_yaw = owner.getEyeLocation().getYaw();
+            @Override
+            public void run() {
+                if (nms_slime == null || nms_slime.onGround) {
+                    cancel();
+                    return;
+                }
+                nms_slime.yaw = original_yaw;
+                nms_slime.lastYaw = original_yaw;
+            }
+        };
+        runnable.runTaskTimer(plugin, 0L, 0L);
         slime.setSize(Math.max(1, (int) charge));
         slime.setMaxHealth(5 + charge * 7);
         slime.setHealth(slime.getMaxHealth());

@@ -1,7 +1,12 @@
 package ssm.managers.disguises;
 
-import org.bukkit.craftbukkit.v1_8_R3.entity.CraftPlayer;
+import org.bukkit.ChatColor;
+import org.bukkit.event.player.PlayerMoveEvent;
+import ssm.commands.CommandShowHealth;
+import ssm.managers.GameManager;
+import ssm.managers.gamestate.GameState;
 import ssm.managers.smashscoreboard.SmashScoreboard;
+import ssm.managers.smashserver.SmashServer;
 import ssm.utilities.Utils;
 import net.minecraft.server.v1_8_R3.*;
 import org.bukkit.Bukkit;
@@ -16,6 +21,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 public abstract class Disguise {
@@ -29,6 +35,7 @@ public abstract class Disguise {
     protected boolean showAttackAnimation = true;
     protected org.bukkit.entity.Entity target = null;
     protected List<Player> viewers = new ArrayList<Player>();
+    protected HashMap<Player, Double> last_viewer_distance = new HashMap<Player, Double>();
 
     public Disguise(Player owner) {
         this.owner = owner;
@@ -44,6 +51,10 @@ public abstract class Disguise {
 
     public Player getOwner() {
         return owner;
+    }
+
+    public boolean isViewer(Player player) {
+        return viewers.contains(player);
     }
 
     public EntityLiving getLiving() {
@@ -64,8 +75,6 @@ public abstract class Disguise {
         }
         living = newLiving();
         armorstand = new EntityArmorStand(((CraftWorld) owner.getWorld()).getHandle());
-        armorstand.setCustomName(SmashScoreboard.getPlayerColor(owner, false) + owner.getName());
-        armorstand.setCustomNameVisible(true);
         // Had no idea this existed, but seems like this is what other servers must be doing
         ((CraftArmorStand) armorstand.getBukkitEntity()).setMarker(true);
         squid = new EntitySquid(((CraftWorld) owner.getWorld()).getHandle());
@@ -75,6 +84,23 @@ public abstract class Disguise {
             }
             showDisguise(player);
         }
+    }
+
+    public void reloadDisguise(Player player) {
+        hideDisguise(player);
+        showDisguise(player);
+    }
+
+    public void reloadLiving(Player player) {
+        // Living Destroy (if player sees them already)
+        PacketPlayOutEntityDestroy destroy_packet = new PacketPlayOutEntityDestroy(living.getId());
+        Utils.sendPacket(player, destroy_packet);
+        // Set exact head rotation before entity is spawned since setPositionRotation does not do that
+        // The body of a mob is rotated on the client so this will make the body spawn already rotated
+        living.f(owner.getLocation().getYaw());
+        // Spawn living
+        PacketPlayOutSpawnEntityLiving living_packet = new PacketPlayOutSpawnEntityLiving(living);
+        Utils.sendPacket(player, living_packet);
     }
 
     public void showDisguise(Player player) {
@@ -98,7 +124,7 @@ public abstract class Disguise {
         Utils.sendPacket(player, destroy_packet);
         // Living Spawn
         living.setPositionRotation(owner.getLocation().getX(), owner.getLocation().getY(), owner.getLocation().getZ(),
-                owner.getLocation().getYaw(), owner.getLocation().getPitch());
+                    owner.getLocation().getYaw(), owner.getLocation().getPitch());
         // Set exact head rotation before entity is spawned since setPositionRotation does not do that
         // The body of a mob is rotated on the client so this will make the body spawn already rotated
         living.f(owner.getLocation().getYaw());
@@ -134,7 +160,7 @@ public abstract class Disguise {
         Utils.sendPacket(player, destroy_living_packet);
         Utils.sendPacket(player, destroy_armorstand_packet);
         Utils.sendPacket(player, destroy_squid_packet);
-        player.showPlayer(owner);
+        showOwner();
         viewers.remove(player);
     }
 
@@ -154,8 +180,38 @@ public abstract class Disguise {
         if (living.dead) {
             return;
         }
-        // Update Nametag
-        armorstand.setCustomName(SmashScoreboard.getPlayerColor(owner, false) + owner.getName());
+        for(Player player : viewers) {
+            if(!player.getWorld().equals(living.getBukkitEntity().getWorld())) {
+                continue;
+            }
+            Location player_xz = player.getLocation();
+            player_xz.setY(0);
+            Location living_xz = living.getBukkitEntity().getLocation();
+            living_xz.setY(0);
+            double distance = player_xz.distance(living_xz);
+            double distance_check = 32;
+            last_viewer_distance.putIfAbsent(player, distance);
+            if(last_viewer_distance.get(player) > distance_check && distance <= distance_check) {
+                reloadLiving(player);
+            }
+            last_viewer_distance.put(player, distance);
+        }
+        // Update nametag
+        for(Player viewer : viewers) {
+            String custom_name = "";
+            SmashServer server = GameManager.getPlayerServer(viewer);
+            if(CommandShowHealth.show_health || (server != null && server.getLives(viewer) <= 0)) {
+                if(server != null && server.getState() >= GameState.GAME_STARTING) {
+                    custom_name += ChatColor.RED + "❤ " + ChatColor.WHITE + String.format("%.2f", owner.getHealth()) + " ";
+                }
+            }
+            custom_name += ChatColor.RESET + SmashScoreboard.getPlayerColor(owner, false) + owner.getName();
+            DataWatcher watcher = new DataWatcher(null);
+            watcher.a(2, custom_name);
+            watcher.a(3, (byte) 1);
+            PacketPlayOutEntityMetadata data_packet = new PacketPlayOutEntityMetadata(armorstand.getId(), watcher, true);
+            Utils.sendPacket(viewer, data_packet);
+        }
         living.onGround = Utils.entityIsOnGround(owner);
         if(target != null) {
             Vector direction = target.getLocation().toVector().subtract(location.toVector());

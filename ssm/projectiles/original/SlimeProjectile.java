@@ -1,6 +1,11 @@
-package ssm.projectiles;
+package ssm.projectiles.original;
 
+import net.minecraft.server.v1_8_R3.EntitySlime;
+import net.minecraft.server.v1_8_R3.PathfinderGoal;
+import net.minecraft.server.v1_8_R3.PathfinderGoalAvoidTarget;
+import org.bukkit.craftbukkit.v1_8_R3.entity.CraftSlime;
 import ssm.events.SmashDamageEvent;
+import ssm.projectiles.SmashProjectile;
 import ssm.utilities.DamageUtil;
 import ssm.utilities.Utils;
 import ssm.utilities.VelocityUtil;
@@ -113,23 +118,18 @@ public class SlimeProjectile extends SmashProjectile {
 
     @EventHandler
     public void onSlimeTarget(EntityTargetEvent e) {
-        if(e.getEntity() == null || e.getTarget() == null) {
+        if(firer == null || projectile == null) {
             return;
         }
-        if(!e.getEntity().equals(projectile)) {
+        if(!projectile.equals(e.getEntity())) {
             return;
         }
-        if(e.getTarget().equals(firer)) {
+        if(e.getTarget() == null) {
+            return;
+        }
+        if(e.getTarget() instanceof Player && !DamageUtil.canDamage((Player) e.getTarget(), firer) || e.getTarget().equals(firer)) {
             e.setCancelled(true);
-            return;
         }
-        if(!(e.getTarget() instanceof LivingEntity)) {
-            return;
-        }
-        if(DamageUtil.canDamage((LivingEntity) e.getTarget(), firer)) {
-            return;
-        }
-        e.setCancelled(true);
     }
 
     @EventHandler

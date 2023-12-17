@@ -19,11 +19,13 @@ import org.bukkit.util.BlockIterator;
 import org.bukkit.util.Vector;
 import ssm.Main;
 import ssm.attributes.Attribute;
+import ssm.attributes.ExpCharge;
+import ssm.kits.Kit;
 import ssm.managers.DamageManager;
 import ssm.managers.DisguiseManager;
+import ssm.managers.KitManager;
 
 import java.util.*;
-import java.util.Map.Entry;
 
 public class Utils {
 
@@ -114,13 +116,20 @@ public class Utils {
         return entityIsOnGround(ent, 0.5);
     }
 
+    public static boolean entityIsDirectlyOnGround(Entity ent) {
+        return entityIsOnGround(ent, 0.01);
+    }
+
     public static boolean entityIsOnGround(Entity ent, double distance) {
         if (ent == null) {
             return false;
         }
         World world = ent.getWorld();
         // Hitbox Edges
-        double[] coords = {-0.3, 0, 0.3};
+        net.minecraft.server.v1_8_R3.Entity nms_entity = ((CraftEntity) ent).getHandle();
+        double width_radius = (nms_entity.width / 2) * 100;
+        width_radius = Math.round(width_radius) / 100.0;
+        double[] coords = {-width_radius, 0, width_radius};
         for (double x : coords) {
             for (double z : coords) {
                 if (!world.getBlockAt(ent.getLocation().subtract(x, distance, z)).getType().isTransparent()) {
@@ -131,8 +140,38 @@ public class Utils {
         return false;
     }
 
-    public static boolean entityIsDirectlyOnGround(Entity ent) {
-        return entityIsOnGround(ent, 0.01);
+    public static boolean entityIsOnBlock(Entity entity) {
+        double xMod = entity.getLocation().getX() % 1;
+        if (entity.getLocation().getX() < 0) {
+            xMod += 1;
+        }
+        double zMod = entity.getLocation().getZ() % 1;
+        if (entity.getLocation().getZ() < 0) {
+            zMod += 1;
+        }
+        int xMin = 0;
+        int xMax = 0;
+        int zMin = 0;
+        int zMax = 0;
+
+        if (xMod < 0.3) xMin = -1;
+        if (xMod > 0.7) xMax = 1;
+        if (zMod < 0.3) zMin = -1;
+        if (zMod > 0.7) zMax = 1;
+
+        for (int x = xMin; x <= xMax; x++) {
+            for (int z = zMin; z <= zMax; z++) {
+                if (entity.getLocation().add(x, -0.5, z).getBlock().getType() != Material.AIR && !entity.getLocation().add(x, -0.5, z).getBlock().isLiquid())
+                    return true;
+                if (entity.getLocation().add(x, 0, z).getBlock().getType() == Material.WATER_LILY)
+                    return true;
+                Material beneath = entity.getLocation().add(x, -1.5, z).getBlock().getType();
+                if (entity.getLocation().getY() % 0.5 == 0 &&
+                        (beneath.toString().contains("FENCE") || beneath == Material.COBBLE_WALL))
+                    return true;
+            }
+        }
+        return false;
     }
 
     public static HashMap<LivingEntity, Double> getInRadius(Location location, double radius) {
@@ -199,6 +238,10 @@ public class Utils {
             player.setSaturation(3);
             player.setLevel(0);
             player.setExp(0);
+            Kit kit = KitManager.getPlayerKit(player);
+            if(kit != null && kit.getAttributeByClass(ExpCharge.class) != null) {
+                player.setExp(1);
+            }
         }
     }
 
@@ -386,12 +429,18 @@ public class Utils {
         // Invincibility
         DamageManager.invincible_mobs.put(squid, 1);
         // Apply melees from squid to entity
-        DisguiseManager.redirect_melee.put(squid, entity);
+        if (entity instanceof LivingEntity) {
+            LivingEntity livingEntity = (LivingEntity) entity;
+            livingEntity.setRemoveWhenFarAway(false);
+            DisguiseManager.redirect_damage.put(squid, livingEntity);
+        }
+        squid.setRemoveWhenFarAway(false);
+        armor_stand.setRemoveWhenFarAway(false);
         BukkitRunnable runnable = new BukkitRunnable() {
             @Override
             public void run() {
-                if (!entity.isValid()) {
-                    DisguiseManager.redirect_melee.remove(squid);
+                if (!entity.isValid() || !squid.isValid() || !armor_stand.isValid()) {
+                    DisguiseManager.redirect_damage.remove(squid);
                     DamageManager.invincible_mobs.remove(squid);
                     armor_stand.remove();
                     squid.remove();

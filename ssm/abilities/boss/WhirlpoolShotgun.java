@@ -6,18 +6,17 @@ import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.util.Vector;
 import ssm.abilities.Ability;
 import ssm.managers.ownerevents.OwnerRightClickEvent;
-import ssm.projectiles.InkProjectile;
-import ssm.projectiles.WhirlpoolProjectile;
+import ssm.projectiles.original.WhirlpoolProjectile;
 import ssm.utilities.VelocityUtil;
 
 public class WhirlpoolShotgun extends Ability implements OwnerRightClickEvent {
 
-    protected int projectile_amount = 10;
+    protected int projectile_amount = 7;
 
     public WhirlpoolShotgun() {
         super();
         this.name = "Whirlpool Shotgun";
-        this.cooldownTime = 6;
+        this.cooldownTime = 5;
         this.usage = AbilityUsage.RIGHT_CLICK;
         this.description = new String[] {
                 ChatColor.RESET + "Blasts 7 whirlpool axes out at high velocity.",
