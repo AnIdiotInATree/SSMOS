@@ -3,6 +3,7 @@ package ssm.managers.smashscoreboard;
 import ssm.managers.GameManager;
 import ssm.managers.KitManager;
 import ssm.managers.TeamManager;
+import ssm.managers.gamemodes.dominate.DominateGamemode;
 import ssm.managers.gamestate.GameState;
 import ssm.managers.smashserver.SmashServer;
 import ssm.managers.smashteam.SmashTeam;
@@ -137,9 +138,12 @@ public class SmashScoreboard implements Listener {
                 for(String add : to_add) {
                     obj.getScore(add).setScore(score++);
                 }
-                obj.getScore(ChatColor.RED + "").setScore(score++);
-                obj.getScore(ChatColor.YELLOW + "" + ChatColor.BOLD + "Players").setScore(score++);
-                obj.getScore(ChatColor.GREEN + "").setScore(score++);
+                if(!(server.getCurrentGamemode() instanceof DominateGamemode))
+                {
+                    obj.getScore(ChatColor.RED + "").setScore(score++);
+                    obj.getScore(ChatColor.YELLOW + "" + ChatColor.BOLD + "Players").setScore(score++);
+                    obj.getScore(ChatColor.GREEN + "").setScore(score++);
+                }
             }
             if (server.getState() == GameState.GAME_ENDING) {
                 return;

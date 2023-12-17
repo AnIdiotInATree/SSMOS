@@ -3,6 +3,7 @@ package ssm.managers.maps;
 import org.bukkit.*;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.ItemFrame;
 import org.bukkit.entity.Player;
 import org.bukkit.material.Wool;
 import org.bukkit.util.Vector;
@@ -59,11 +60,11 @@ public class GameMap extends SmashMap {
 
     public boolean parseBlock(Block parsed) {
         if(isRespawnPoint(parsed)) {
-            respawn_points.add(parsed.getLocation());
+            respawn_points.add(getCenteredLocation(parsed.getLocation()));
             return true;
         }
         if(isBoundaryPoint(parsed)) {
-            addBoundaryPoint(parsed.getLocation());
+            addBoundaryPoint(getCenteredLocation(parsed.getLocation()));
             return true;
         }
         if(isCenterPoint(parsed)) {

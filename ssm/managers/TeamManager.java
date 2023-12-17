@@ -1,5 +1,6 @@
 package ssm.managers;
 
+import ssm.managers.gamemodes.dominate.DominateTeam;
 import ssm.managers.smashteam.SmashTeam;
 import ssm.Main;
 import org.bukkit.Bukkit;
@@ -24,6 +25,12 @@ public class TeamManager implements Listener {
 
     public static SmashTeam createTeam(String team_name, ChatColor team_color) {
         SmashTeam team = new SmashTeam(team_name, team_color);
+        teams.add(team);
+        return team;
+    }
+
+    public static DominateTeam createDominateTeam(String team_name, ChatColor team_color) {
+        DominateTeam team = new DominateTeam(team_name, team_color);
         teams.add(team);
         return team;
     }

@@ -25,10 +25,8 @@ import ssm.commands.*;
 import ssm.kits.Kit;
 import ssm.managers.*;
 import ssm.managers.disguises.Disguise;
-import ssm.managers.gamemodes.BossGamemode;
-import ssm.managers.gamemodes.SoloGamemode;
-import ssm.managers.gamemodes.TeamsGamemode;
-import ssm.managers.gamemodes.TestingGamemode;
+import ssm.managers.gamemodes.*;
+import ssm.managers.gamemodes.dominate.DominateGamemode;
 import ssm.managers.smashserver.SmashServer;
 import ssm.utilities.DamageUtil;
 import ssm.utilities.Utils;
@@ -54,6 +52,10 @@ public class Main extends JavaPlugin implements Listener {
     public static HashMap<Player, DoubleJump> hub_doublejump = new HashMap<Player, DoubleJump>();
     public static HashMap<Player, Long> last_boost_time = new HashMap<Player, Long>();
 
+    public static void main(String[] args)
+    {
+
+    }
     @Override
     public void onEnable() {
         ourInstance = this;
@@ -123,15 +125,8 @@ public class Main extends JavaPlugin implements Listener {
                 server.teleportToServer(player);
             }
         } else {
-            GameManager.createSmashServer(new SoloGamemode());
-            GameManager.createSmashServer(new SoloGamemode());
-            GameManager.createSmashServer(new SoloGamemode());
-            GameManager.createSmashServer(new SoloGamemode());
-            GameManager.createSmashServer(new SoloGamemode());
-            GameManager.createSmashServer(new TeamsGamemode());
-            GameManager.createSmashServer(new TeamsGamemode());
-            GameManager.createSmashServer(new BossGamemode());
-            GameManager.createSmashServer(new TestingGamemode());
+            GameManager.createSmashServer(new TrainingGamemode());
+            //GameManager.createSmashServer(new DominateGamemode());
         }
         // Do not do anything before manager creation please
     }
@@ -255,7 +250,10 @@ public class Main extends JavaPlugin implements Listener {
             }
             return;
         }
-        if (blockIn.isLiquid() && DamageUtil.canDamage(player, null)) {
+
+        SmashServer server = GameManager.getPlayerServer(player);
+
+        if (server != null && !(server.getCurrentGamemode() instanceof DominateGamemode) && blockIn.isLiquid() && DamageUtil.canDamage(player, null)) {
             boolean lighting = false;
             if (blockIn.getType() == Material.LAVA || blockIn.getType() == Material.STATIONARY_LAVA) {
                 lighting = true;

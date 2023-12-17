@@ -21,7 +21,6 @@ import org.bukkit.inventory.meta.FireworkMeta;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scoreboard.DisplaySlot;
-import org.bukkit.util.Vector;
 import ssm.Main;
 import ssm.attributes.Attribute;
 import ssm.events.GameStateChangeEvent;
@@ -30,8 +29,10 @@ import ssm.events.SmashDamageEvent;
 import ssm.kits.Kit;
 import ssm.kits.original.KitTemporarySpectator;
 import ssm.managers.*;
+import ssm.managers.gamemodes.dominate.DominateGamemode;
 import ssm.managers.gamemodes.SmashGamemode;
 import ssm.managers.gamestate.GameState;
+import ssm.managers.maps.DominateMap;
 import ssm.managers.maps.GameMap;
 import ssm.managers.maps.LobbyMap;
 import ssm.managers.ownerevents.OwnerDeathEvent;
@@ -57,6 +58,7 @@ public class SmashServer implements Listener, Runnable {
     protected SmashGamemode current_gamemode;
     protected LobbyMap lobby_map;
     protected GameMap game_map = null;
+    protected DominateMap dominate_map = null;
     public List<Player> players = new ArrayList<Player>();
     public List<Player> toggled_spectator = new ArrayList<Player>();
     public HashMap<Player, Integer> lives = new HashMap<Player, Integer>();
@@ -145,6 +147,10 @@ public class SmashServer implements Listener, Runnable {
                 } else if(equipped_kit == null && default_kit != null) {
                     KitManager.equipPlayer(player, default_kit);
                 }
+            }
+            if(current_gamemode instanceof DominateGamemode)
+            {
+                game_map = (DominateMap) game_map;
             }
             game_map.createWorld();
             setTimeLeft(15);
@@ -326,6 +332,13 @@ public class SmashServer implements Listener, Runnable {
         }
         // Don't do anything before setting to full hp again
         Utils.fullHeal(player);
+
+        // this is moved from being above the "out of game check" comment to here so that gamemodes that override this event can get damage records.
+        // hopefully this doesn't cause issues!!! (doesn't seem so from testing.......)
+        lives.put(player, lives.get(player) - 1);
+        PlayerLostLifeEvent playerLostLifeEvent = new PlayerLostLifeEvent(player, lives.get(player));
+        playerLostLifeEvent.callEvent();
+
         // Blood Particles
         EffectUtil.createEffect(player.getEyeLocation(), 10, 0.5, Sound.HURT_FLESH,
                 1f, 1f, Material.INK_SACK, (byte) 1, 10, true);
@@ -359,9 +372,7 @@ public class SmashServer implements Listener, Runnable {
                 }
             }
         }
-        lives.put(player, lives.get(player) - 1);
-        PlayerLostLifeEvent playerLostLifeEvent = new PlayerLostLifeEvent(player, lives.get(player));
-        playerLostLifeEvent.callEvent();
+
         // Out of the game check
         if (lives.get(player) <= 0) {
             Utils.sendTitleMessage(player, ChatColor.RED + "You Died", "",

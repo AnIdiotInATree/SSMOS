@@ -3,6 +3,8 @@ package ssm.managers.maps;
 import org.apache.commons.io.FileUtils;
 import org.bukkit.*;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
+import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.ItemFrame;
 import org.bukkit.entity.Player;
@@ -13,6 +15,7 @@ import ssm.Main;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
 
@@ -24,6 +27,7 @@ public abstract class SmashMap implements Listener {
     protected int permanent_chunk_load_radius = -1;
     protected int parse_chunk_radius = 0;
     protected List<Chunk> permanent_chunks = new ArrayList<Chunk>();
+    private HashMap<Location, BlockFace> itemFrameRotations = new HashMap<>();
 
     public SmashMap(File original_directory) {
         Bukkit.getServer().getPluginManager().registerEvents(this, Main.getInstance());
@@ -68,17 +72,65 @@ public abstract class SmashMap implements Listener {
             }
         }
         for (Entity entity : world.getEntities()) {
-            if (!(entity instanceof ItemFrame)) {
-                continue;
+            if (entity instanceof ItemFrame) {
+                ItemFrame frame = (ItemFrame) entity;
+                Block parsed = frame.getLocation().getBlock().getRelative(frame.getAttachedFace());
+                itemFrameRotations.put(parsed.getLocation(), frame.getFacing());
+                if (parseBlock(parsed)) {
+                    frame.remove();
+                    parsed.getRelative(0, 1, 0).setType(Material.AIR);
+                    parsed.setType(Material.AIR);
+                }
             }
-            ItemFrame frame = (ItemFrame) entity;
-            Block parsed = frame.getLocation().getBlock().getRelative(frame.getAttachedFace());
-            if (parseBlock(parsed)) {
-                frame.remove();
-                parsed.getRelative(0, 1, 0).setType(Material.AIR);
-                parsed.setType(Material.AIR);
+
+            if(entity instanceof ArmorStand)
+            {
+                ArmorStand armorStand = (ArmorStand) entity;
+                Block parsed = armorStand.getLocation().getBlock().getRelative(0, -1, 0);
+                if(parseBlock(parsed))
+                {
+                    armorStand.remove();
+                    if(parsed.getType() == Material.GLASS)
+                    {
+                        parsed.setType(Material.AIR);
+                    }
+                    else
+                    {
+                        parsed.setType(Material.IRON_BLOCK);
+                    }
+                }
             }
         }
+    }
+
+    public Location getCenteredLocation(Location location)
+    {
+        if(itemFrameRotations.get(location) != null)
+        {
+            Location centeredLocation = location.clone().add(0.5,0,0.5);
+            BlockFace facing = itemFrameRotations.get(location);
+
+            if(facing == BlockFace.NORTH)
+            {
+                centeredLocation.setYaw(180f);
+            }
+            if(facing == BlockFace.EAST)
+            {
+                centeredLocation.setYaw(-90f);
+            }
+            if(facing == BlockFace.SOUTH)
+            {
+                centeredLocation.setYaw(0f);
+            }
+            if(facing == BlockFace.WEST)
+            {
+                centeredLocation.setYaw(90f);
+            }
+
+            return centeredLocation;
+        }
+        System.out.println(ChatColor.RED + "Failed to get direction");
+        return location.add(0.5, 0, 0.5);
     }
 
     public void deleteWorld() {
