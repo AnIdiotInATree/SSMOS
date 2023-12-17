@@ -66,8 +66,7 @@ public class SmashServer implements Listener, Runnable {
 
     public SmashServer() {
         Bukkit.getServer().getPluginManager().registerEvents(this, plugin);
-        scoreboard = new SmashScoreboard();
-        scoreboard.server = this;
+        scoreboard = new SmashScoreboard(this);
         File lobby_directory = new File("maps/lobby_world");
         lobby_map = new LobbyMap(lobby_directory);
         lobby_map.createWorld();

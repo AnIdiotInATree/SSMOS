@@ -2,6 +2,7 @@ package ssm.managers.gamemodes;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
@@ -62,7 +63,7 @@ public class BossGamemode extends SmashGamemode {
     @Override
     public void setPlayerLobbyItems(Player player) {
         super.setPlayerLobbyItems(player);
-        player.getInventory().setItem(2, Main.SELECT_BOSS_ITEM);
+        player.getInventory().setItem(2, new ItemStack(Material.COAL));
     }
 
     // Select one boss player and put all players on teams

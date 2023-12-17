@@ -99,7 +99,6 @@ public class Main extends JavaPlugin implements Listener {
         this.getCommand("spectate").setExecutor(new CommandSpectate());
         this.getCommand("setplaying").setExecutor(new CommandSetPlaying());
         this.getCommand("randomkit").setExecutor(new CommandRandomKit());
-        this.getCommand("playerdisguise").setExecutor(new CommandPlayerDisguise());
         this.getCommand("damagelog").setExecutor(new CommandDamageLog());
         CommandSetLives setlives = new CommandSetLives();
         this.getCommand("setlives").setExecutor(setlives);
@@ -157,13 +156,12 @@ public class Main extends JavaPlugin implements Listener {
         player.getInventory().setArmorContents(null);
         player.getInventory().setItem(0, SERVER_BROWSER_ITEM);
         Utils.fullHeal(player);
-        DoubleJump double_jump = new DoubleJump(1, 1, 1, Sound.GHAST_FIREBALL) {
+        DoubleJump double_jump = new DoubleJump(1, 1, Sound.GHAST_FIREBALL) {
             @Override
             public boolean groundCheck() {
                 return Utils.entityIsDirectlyOnGround(owner);
             }
 
-            @Override
             protected void jump() {
                 Vector vector = owner.getLocation().getDirection();
                 vector.setY(Math.abs(vector.getY()));

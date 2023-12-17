@@ -1,15 +1,12 @@
 package ssm.abilities.boss;
 
 import org.bukkit.ChatColor;
-import org.bukkit.Material;
 import org.bukkit.event.player.PlayerInteractEvent;
 import ssm.abilities.Ability;
 import ssm.managers.DisguiseManager;
-import ssm.managers.disguises.CreeperDisguise;
 import ssm.managers.disguises.Disguise;
 import ssm.managers.disguises.GhastDisguise;
 import ssm.managers.ownerevents.OwnerRightClickEvent;
-import ssm.projectiles.SulphurProjectile;
 
 public class GhastMouth extends Ability implements OwnerRightClickEvent {
 

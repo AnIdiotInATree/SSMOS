@@ -50,7 +50,7 @@ public class GameManager implements Listener {
             server.getLobbyMap().deleteWorld();
         }
         server.getCurrentGamemode().deleteMaps();
-        server.getScoreboard().server = null;
+        server.getScoreboard().equals(null);
         servers.remove(server);
     }
 
